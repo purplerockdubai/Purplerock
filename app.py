@@ -4,9 +4,8 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-2024'
+app.secret_key = 'secret123'
 
-# Database setup
 DB_PATH = 'database.db'
 
 def get_db():
@@ -16,13 +15,11 @@ def get_db():
 
 def init_db():
     conn = get_db()
-    # Create tables
     conn.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY,
         email TEXT UNIQUE,
         password TEXT,
-        username TEXT,
-        role TEXT DEFAULT 'staff'
+        username TEXT
     )''')
     conn.execute('''CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY,
@@ -34,19 +31,15 @@ def init_db():
         category TEXT
     )''')
     
-    # Create admin user
     admin = conn.execute("SELECT * FROM users WHERE email = ?", ('musthafa@purplerock.com',)).fetchone()
     if not admin:
-        conn.execute("INSERT INTO users (email, password, username, role) VALUES (?,?,?,?)",
-                    ('musthafa@purplerock.com', generate_password_hash('Limara9*'), 'Admin', 'admin'))
+        conn.execute("INSERT INTO users (email, password, username) VALUES (?,?,?)",
+                    ('musthafa@purplerock.com', generate_password_hash('Limara9*'), 'Admin'))
         
-        # Sample products
         samples = [
             ('Laptop Pro', 'LAP001', 10, 999.99, 'Dell', 'Electronics'),
             ('Wireless Mouse', 'MOU001', 50, 29.99, 'Logitech', 'Accessories'),
-            ('Mechanical Keyboard', 'KEY001', 5, 89.99, 'Corsair', 'Accessories'),
-            ('24" Monitor', 'MON001', 8, 199.99, 'Samsung', 'Electronics'),
-            ('USB-C Cable', 'CAB001', 100, 12.99, 'Anker', 'Accessories'),
+            ('Keyboard', 'KEY001', 5, 89.99, 'Corsair', 'Accessories'),
         ]
         for s in samples:
             conn.execute("INSERT INTO products (name, sku, stock, price, brand, category) VALUES (?,?,?,?,?,?)", s)
@@ -54,216 +47,90 @@ def init_db():
     conn.commit()
     conn.close()
 
-# HTML Templates
-LOGIN_PAGE = '''
+# Simple login page
+LOGIN_HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Inventory System - Login</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .login-card {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-        .logo { font-size: 60px; margin-bottom: 10px; }
-        h2 { color: #333; margin-bottom: 5px; }
-        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
-        input {
-            width: 100%;
-            padding: 12px 15px;
-            margin: 10px 0;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-        input:focus { border-color: #667eea; outline: none; }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-        button:hover { background: #5a67d8; }
-        .error { color: #e53e3e; margin-top: 15px; }
-        .footer { margin-top: 30px; font-size: 12px; color: #999; }
+        body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; background: #667eea; }
+        .box { background: white; padding: 40px; border-radius: 10px; width: 350px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { width: 100%; padding: 10px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .error { color: red; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="logo">📦</div>
-        <h2>Inventory Pro</h2>
-        <div class="subtitle">Inventory Management System</div>
+    <div class="box">
+        <h2>Inventory System</h2>
         <form method="POST">
-            <input type="email" name="email" placeholder="Email Address" required>
+            <input type="email" name="email" placeholder="Email" required>
             <input type="password" name="password" placeholder="Password" required>
             <button type="submit">Login</button>
         </form>
         {% if error %}<div class="error">{{ error }}</div>{% endif %}
-        <div class="footer">Powered by Inventory Pro</div>
     </div>
 </body>
 </html>
 '''
 
-DASHBOARD_PAGE = '''
+# Simple dashboard
+DASHBOARD_HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard - Inventory Pro</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
-        .sidebar {
-            width: 260px;
-            background: #1a1a2e;
-            color: white;
-            position: fixed;
-            height: 100%;
-        }
-        .sidebar-header { padding: 25px; text-align: center; border-bottom: 1px solid #2a2a4e; }
-        .sidebar-header h3 { font-size: 20px; }
-        .nav-item {
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .nav-item:hover { background: #2a2a4e; }
-        .main-content { margin-left: 260px; padding: 20px; }
-        .top-bar {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 25px;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-        }
+        body { font-family: Arial; margin: 0; padding: 20px; background: #f0f2f5; }
+        .header { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; }
+        .stats { display: flex; gap: 20px; margin-bottom: 20px; }
+        .stat { background: white; padding: 20px; border-radius: 10px; flex: 1; text-align: center; }
         .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
-        .stat-label { color: #666; margin-top: 5px; }
-        .table-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            overflow-x: auto;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }
-        th { background: #f8f9fa; }
-        .btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            margin: 0 2px;
-        }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-danger { background: #e53e3e; color: white; }
-        .low-stock { background: #fed7d7; color: #c53030; font-weight: bold; }
-        .add-btn {
-            background: #48bb78;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; }
-        }
+        table { width: 100%; background: white; border-radius: 10px; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        button { padding: 5px 10px; margin: 0 2px; cursor: pointer; }
+        .add-btn { background: #48bb78; color: white; padding: 10px 20px; border: none; border-radius: 5px; margin-bottom: 20px; cursor: pointer; }
+        .logout { background: #e53e3e; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="sidebar-header"><h3>📦 Inventory Pro</h3></div>
-        <div class="nav-item" onclick="location.href='/dashboard'">📊 Dashboard</div>
-        <div class="nav-item" onclick="location.href='/add'">➕ Add Product</div>
-        <div class="nav-item" onclick="location.href='/logout'">🚪 Logout</div>
+    <div class="header">
+        <h2>Inventory Dashboard</h2>
+        <div><button class="logout" onclick="location.href='/logout'">Logout</button></div>
     </div>
     
-    <div class="main-content">
-        <div class="top-bar">
-            <h2>Dashboard</h2>
-            <div>👤 {{ username }} ({{ role }})</div>
-        </div>
-        
-        <div class="stats-grid">
-            <div class="stat-card"><div class="stat-number">{{ total_products }}</div><div class="stat-label">Total Products</div></div>
-            <div class="stat-card"><div class="stat-number">{{ low_stock }}</div><div class="stat-label">Low Stock Items</div></div>
-            <div class="stat-card"><div class="stat-number">${{ total_value }}</div><div class="stat-label">Inventory Value</div></div>
-        </div>
-        
-        <button class="add-btn" onclick="location.href='/add'">+ Add New Product</button>
-        
-        <div class="table-container">
-            <h3>All Products</h3>
-            <table>
-                <thead>
-                    <tr><th>Name</th><th>SKU</th><th>Stock</th><th>Price</th><th>Brand</th><th>Category</th><th>Action</th></tr>
-                </thead>
-                <tbody>
-                    {% for p in products %}
-                    <tr>
-                        <td>{{ p.name }}</td>
-                        <td>{{ p.sku }}</td>
-                        <td {% if p.stock < 10 %}class="low-stock"{% endif %}>{{ p.stock }}</td>
-                        <td>${{ "%.2f"|format(p.price) }}</td>
-                        <td>{{ p.brand }}</td>
-                        <td>{{ p.category }}</td>
-                        <td>
-                            <button class="btn btn-primary" onclick="updateStock({{ p.id }}, {{ p.stock }})">Update</button>
-                            <button class="btn btn-danger" onclick="deleteProduct({{ p.id }})">Delete</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="stats">
+        <div class="stat"><div class="stat-number">{{ total_products }}</div><div>Total Products</div></div>
+        <div class="stat"><div class="stat-number">{{ low_stock }}</div><div>Low Stock</div></div>
+        <div class="stat"><div class="stat-number">${{ total_value }}</div><div>Inventory Value</div></div>
     </div>
+    
+    <button class="add-btn" onclick="location.href='/add'">+ Add Product</button>
+    
+    <table>
+        <tr><th>Name</th><th>SKU</th><th>Stock</th><th>Price</th><th>Brand</th><th>Action</th></tr>
+        {% for p in products %}
+        <tr>
+            <td>{{ p.name }}</td>
+            <td>{{ p.sku }}</td>
+            <td {% if p.stock < 10 %}style="color:red;font-weight:bold"{% endif %}>{{ p.stock }}</td>
+            <td>${{ "%.2f"|format(p.price) }}</td>
+            <td>{{ p.brand }}</td>
+            <td>
+                <button onclick="updateStock({{ p.id }}, {{ p.stock }})">Update Stock</button>
+                <button onclick="deleteProduct({{ p.id }})" style="background:#e53e3e;color:white">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
     
     <script>
         function deleteProduct(id) {
             if(confirm('Delete this product?')) location.href = '/delete/' + id;
         }
         function updateStock(id, current) {
-            let stock = prompt('Enter new stock quantity:', current);
+            let stock = prompt('Enter new stock:', current);
             if(stock) location.href = '/update/' + id + '/' + stock;
         }
     </script>
@@ -271,74 +138,47 @@ DASHBOARD_PAGE = '''
 </html>
 '''
 
-ADD_PAGE = '''
+# Add product page
+ADD_HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Add Product - Inventory Pro</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Add Product</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial; background: #f0f2f5; padding: 40px; }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-        }
-        h2 { margin-bottom: 20px; }
-        label { display: block; margin: 15px 0 5px; font-weight: 500; }
-        input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #48bb78;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            margin-top: 20px;
-            cursor: pointer;
-        }
+        body { font-family: Arial; padding: 40px; background: #f0f2f5; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        label { display: block; margin: 10px 0 5px; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { width: 100%; padding: 12px; background: #48bb78; color: white; border: none; border-radius: 5px; margin-top: 20px; cursor: pointer; }
         .back { background: #718096; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>➕ Add New Product</h2>
+        <h2>Add New Product</h2>
         <form method="POST">
-            <label>Product Name *</label>
+            <label>Product Name:</label>
             <input type="text" name="name" required>
-            <label>SKU *</label>
+            <label>SKU:</label>
             <input type="text" name="sku" required>
-            <label>Stock *</label>
+            <label>Stock:</label>
             <input type="number" name="stock" required>
-            <label>Price *</label>
+            <label>Price:</label>
             <input type="number" step="0.01" name="price" required>
-            <label>Brand</label>
+            <label>Brand:</label>
             <input type="text" name="brand">
-            <label>Category</label>
+            <label>Category:</label>
             <input type="text" name="category">
-            <button type="submit">💾 Save Product</button>
+            <button type="submit">Save Product</button>
         </form>
-        <button class="back" onclick="location.href='/dashboard'">← Back</button>
+        <button class="back" onclick="location.href='/dashboard'">Back</button>
     </div>
 </body>
 </html>
 '''
 
-# ============ ROUTES ============
-
-@app.route('/')
-def home():
-    return redirect('/login')
-
-@app.route('/login', methods=['GET', 'POST'])
+# Routes
+@app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
@@ -349,47 +189,39 @@ def login():
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
-            session['role'] = user['role']
             return redirect('/dashboard')
-        return render_template_string(LOGIN_PAGE, error='Invalid credentials')
-    return render_template_string(LOGIN_PAGE)
+        return render_template_string(LOGIN_HTML, error='Invalid login')
+    return render_template_string(LOGIN_HTML)
 
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
-        return redirect('/login')
+        return redirect('/')
     conn = get_db()
-    products = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
+    products = conn.execute("SELECT * FROM products").fetchall()
     conn.close()
     total_products = len(products)
     low_stock = len([p for p in products if p['stock'] < 10])
     total_value = sum(p['stock'] * p['price'] for p in products)
-    return render_template_string(DASHBOARD_PAGE,
-                                 products=products,
-                                 total_products=total_products,
-                                 low_stock=low_stock,
-                                 total_value=f"{total_value:.2f}",
-                                 username=session['username'],
-                                 role=session['role'])
+    return render_template_string(DASHBOARD_HTML, products=products, total_products=total_products, low_stock=low_stock, total_value=f"{total_value:.2f}")
 
 @app.route('/add', methods=['GET', 'POST'])
 def add():
     if 'user_id' not in session:
-        return redirect('/login')
+        return redirect('/')
     if request.method == 'POST':
         conn = get_db()
         conn.execute("INSERT INTO products (name, sku, stock, price, brand, category) VALUES (?,?,?,?,?,?)",
-                    (request.form['name'], request.form['sku'], int(request.form['stock']),
-                     float(request.form['price']), request.form.get('brand', ''), request.form.get('category', '')))
+                    (request.form['name'], request.form['sku'], int(request.form['stock']), float(request.form['price']), request.form.get('brand', ''), request.form.get('category', '')))
         conn.commit()
         conn.close()
         return redirect('/dashboard')
-    return render_template_string(ADD_PAGE)
+    return render_template_string(ADD_HTML)
 
 @app.route('/delete/<int:id>')
 def delete(id):
     if 'user_id' not in session:
-        return redirect('/login')
+        return redirect('/')
     conn = get_db()
     conn.execute("DELETE FROM products WHERE id = ?", (id,))
     conn.commit()
@@ -399,7 +231,7 @@ def delete(id):
 @app.route('/update/<int:id>/<int:stock>')
 def update(id, stock):
     if 'user_id' not in session:
-        return redirect('/login')
+        return redirect('/')
     conn = get_db()
     conn.execute("UPDATE products SET stock = ? WHERE id = ?", (stock, id))
     conn.commit()
@@ -409,10 +241,10 @@ def update(id, stock):
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/login')
+    return redirect('/')
 
-# ============ START APP ============
+# Start app
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='0.0.0.0', port=port)
