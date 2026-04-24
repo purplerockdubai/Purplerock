@@ -1,9 +1,7 @@
-from flask import Flask, render_template_string, request, redirect, session, jsonify
+from flask import Flask, render_template_string, request, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
-import threading
-import time
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-2024'
@@ -33,8 +31,7 @@ def init_db():
         stock INTEGER,
         price REAL,
         brand TEXT,
-        category TEXT,
-        image TEXT
+        category TEXT
     )''')
     
     # Create admin user
@@ -45,20 +42,20 @@ def init_db():
         
         # Sample products
         samples = [
-            ('Laptop Pro', 'LAP001', 10, 999.99, 'Dell', 'Electronics', ''),
-            ('Wireless Mouse', 'MOU001', 50, 29.99, 'Logitech', 'Accessories', ''),
-            ('Mechanical Keyboard', 'KEY001', 5, 89.99, 'Corsair', 'Accessories', ''),
-            ('24" Monitor', 'MON001', 8, 199.99, 'Samsung', 'Electronics', ''),
-            ('USB-C Cable', 'CAB001', 100, 12.99, 'Anker', 'Accessories', ''),
+            ('Laptop Pro', 'LAP001', 10, 999.99, 'Dell', 'Electronics'),
+            ('Wireless Mouse', 'MOU001', 50, 29.99, 'Logitech', 'Accessories'),
+            ('Mechanical Keyboard', 'KEY001', 5, 89.99, 'Corsair', 'Accessories'),
+            ('24" Monitor', 'MON001', 8, 199.99, 'Samsung', 'Electronics'),
+            ('USB-C Cable', 'CAB001', 100, 12.99, 'Anker', 'Accessories'),
         ]
         for s in samples:
-            conn.execute("INSERT INTO products (name, sku, stock, price, brand, category, image) VALUES (?,?,?,?,?,?,?)", s)
+            conn.execute("INSERT INTO products (name, sku, stock, price, brand, category) VALUES (?,?,?,?,?,?)", s)
     
     conn.commit()
     conn.close()
 
 # HTML Templates
-LOGIN_TEMPLATE = '''
+LOGIN_PAGE = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -94,7 +91,6 @@ LOGIN_TEMPLATE = '''
             border: 2px solid #e0e0e0;
             border-radius: 10px;
             font-size: 14px;
-            transition: all 0.3s;
         }
         input:focus { border-color: #667eea; outline: none; }
         button {
@@ -110,7 +106,7 @@ LOGIN_TEMPLATE = '''
             margin-top: 20px;
         }
         button:hover { background: #5a67d8; }
-        .error { color: #e53e3e; margin-top: 15px; font-size: 14px; }
+        .error { color: #e53e3e; margin-top: 15px; }
         .footer { margin-top: 30px; font-size: 12px; color: #999; }
     </style>
 </head>
@@ -131,7 +127,7 @@ LOGIN_TEMPLATE = '''
 </html>
 '''
 
-DASHBOARD_TEMPLATE = '''
+DASHBOARD_PAGE = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -140,15 +136,12 @@ DASHBOARD_TEMPLATE = '''
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; }
-        
-        /* Sidebar */
         .sidebar {
             width: 260px;
             background: #1a1a2e;
             color: white;
             position: fixed;
             height: 100%;
-            transition: all 0.3s;
         }
         .sidebar-header { padding: 25px; text-align: center; border-bottom: 1px solid #2a2a4e; }
         .sidebar-header h3 { font-size: 20px; }
@@ -161,9 +154,6 @@ DASHBOARD_TEMPLATE = '''
             transition: all 0.3s;
         }
         .nav-item:hover { background: #2a2a4e; }
-        .nav-item i { width: 24px; }
-        
-        /* Main Content */
         .main-content { margin-left: 260px; padding: 20px; }
         .top-bar {
             background: white;
@@ -171,9 +161,7 @@ DASHBOARD_TEMPLATE = '''
             border-radius: 12px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
             margin-bottom: 25px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .stats-grid {
             display: grid;
@@ -185,22 +173,18 @@ DASHBOARD_TEMPLATE = '''
             background: white;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
         .stat-label { color: #666; margin-top: 5px; }
-        
-        /* Table */
         .table-container {
             background: white;
             border-radius: 12px;
             padding: 20px;
             overflow-x: auto;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }
-        th { background: #f8f9fa; font-weight: 600; }
+        th { background: #f8f9fa; }
         .btn {
             padding: 6px 12px;
             border: none;
@@ -210,7 +194,6 @@ DASHBOARD_TEMPLATE = '''
         }
         .btn-primary { background: #667eea; color: white; }
         .btn-danger { background: #e53e3e; color: white; }
-        .btn-success { background: #48bb78; color: white; }
         .low-stock { background: #fed7d7; color: #c53030; font-weight: bold; }
         .add-btn {
             background: #48bb78;
@@ -222,18 +205,17 @@ DASHBOARD_TEMPLATE = '''
             margin-bottom: 20px;
         }
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); position: fixed; z-index: 1000; }
-            .sidebar.open { transform: translateX(0); }
+            .sidebar { transform: translateX(-100%); }
             .main-content { margin-left: 0; }
         }
     </style>
 </head>
 <body>
-    <div class="sidebar" id="sidebar">
+    <div class="sidebar">
         <div class="sidebar-header"><h3>📦 Inventory Pro</h3></div>
-        <div class="nav-item" onclick="location.href='/dashboard'"><i>📊</i> Dashboard</div>
-        <div class="nav-item" onclick="location.href='/add'"><i>➕</i> Add Product</div>
-        <div class="nav-item" onclick="location.href='/logout'"><i>🚪</i> Logout</div>
+        <div class="nav-item" onclick="location.href='/dashboard'">📊 Dashboard</div>
+        <div class="nav-item" onclick="location.href='/add'">➕ Add Product</div>
+        <div class="nav-item" onclick="location.href='/logout'">🚪 Logout</div>
     </div>
     
     <div class="main-content">
@@ -289,7 +271,7 @@ DASHBOARD_TEMPLATE = '''
 </html>
 '''
 
-ADD_TEMPLATE = '''
+ADD_PAGE = '''
 <!DOCTYPE html>
 <html>
 <head>
@@ -304,11 +286,10 @@ ADD_TEMPLATE = '''
             background: white;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         h2 { margin-bottom: 20px; }
         label { display: block; margin: 15px 0 5px; font-weight: 500; }
-        input, select {
+        input {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -323,12 +304,8 @@ ADD_TEMPLATE = '''
             border-radius: 8px;
             margin-top: 20px;
             cursor: pointer;
-            font-size: 16px;
         }
-        .back {
-            background: #718096;
-            margin-top: 10px;
-        }
+        .back { background: #718096; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -349,13 +326,19 @@ ADD_TEMPLATE = '''
             <input type="text" name="category">
             <button type="submit">💾 Save Product</button>
         </form>
-        <button class="back" onclick="location.href='/dashboard'">← Back to Dashboard</button>
+        <button class="back" onclick="location.href='/dashboard'">← Back</button>
     </div>
 </body>
 </html>
 '''
 
-@app.route('/', methods=['GET', 'POST'])
+# ============ ROUTES ============
+
+@app.route('/')
+def home():
+    return redirect('/login')
+
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
@@ -368,20 +351,20 @@ def login():
             session['username'] = user['username']
             session['role'] = user['role']
             return redirect('/dashboard')
-        return render_template_string(LOGIN_TEMPLATE, error='Invalid email or password')
-    return render_template_string(LOGIN_TEMPLATE)
+        return render_template_string(LOGIN_PAGE, error='Invalid credentials')
+    return render_template_string(LOGIN_PAGE)
 
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
-        return redirect('/')
+        return redirect('/login')
     conn = get_db()
     products = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
     conn.close()
     total_products = len(products)
     low_stock = len([p for p in products if p['stock'] < 10])
     total_value = sum(p['stock'] * p['price'] for p in products)
-    return render_template_string(DASHBOARD_TEMPLATE,
+    return render_template_string(DASHBOARD_PAGE,
                                  products=products,
                                  total_products=total_products,
                                  low_stock=low_stock,
@@ -392,7 +375,7 @@ def dashboard():
 @app.route('/add', methods=['GET', 'POST'])
 def add():
     if 'user_id' not in session:
-        return redirect('/')
+        return redirect('/login')
     if request.method == 'POST':
         conn = get_db()
         conn.execute("INSERT INTO products (name, sku, stock, price, brand, category) VALUES (?,?,?,?,?,?)",
@@ -401,12 +384,12 @@ def add():
         conn.commit()
         conn.close()
         return redirect('/dashboard')
-    return render_template_string(ADD_TEMPLATE)
+    return render_template_string(ADD_PAGE)
 
 @app.route('/delete/<int:id>')
 def delete(id):
     if 'user_id' not in session:
-        return redirect('/')
+        return redirect('/login')
     conn = get_db()
     conn.execute("DELETE FROM products WHERE id = ?", (id,))
     conn.commit()
@@ -416,7 +399,7 @@ def delete(id):
 @app.route('/update/<int:id>/<int:stock>')
 def update(id, stock):
     if 'user_id' not in session:
-        return redirect('/')
+        return redirect('/login')
     conn = get_db()
     conn.execute("UPDATE products SET stock = ? WHERE id = ?", (stock, id))
     conn.commit()
@@ -426,9 +409,9 @@ def update(id, stock):
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect('/login')
 
-# Start the app
+# ============ START APP ============
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 5000))
