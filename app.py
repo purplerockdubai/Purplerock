@@ -1,11 +1,3 @@
-# Simplified templates for other pages (add these to avoid errors)
-MULTI_SCAN_TEMPLATE = '<!DOCTYPE html><html><body><h2>Multi-Scan</h2><a href="/dashboard">Back</a></body></html>'
-USERS_TEMPLATE = '<!DOCTYPE html><html><body><h2>User Management</h2><a href="/dashboard">Back</a></body></html>'
-TRANSACTIONS_TEMPLATE = '<!DOCTYPE html><html><body><h2>Transactions</h2><a href="/dashboard">Back</a></body></html>'
-BARCODE_TEMPLATE = '<!DOCTYPE html><html><body><h2>Barcode Scanner</h2><a href="/dashboard">Back</a></body></html>'
-ACTIVITY_LOGS_TEMPLATE = '<!DOCTYPE html><html><body><h2>Activity Logs</h2><a href="/dashboard">Back</a></body></html>'
-LOGO_SETTINGS_TEMPLATE = '<!DOCTYPE html><html><body><h2>Logo Settings</h2><a href="/dashboard">Back</a></body></html>'
-
 USERS_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -480,7 +472,7 @@ input[type="file"]{margin:20px 0}
 </html>
 '''
 
-# Also update the API route for product-by-barcode (add this if missing)
+
 @app.route('/api/product-by-barcode/<barcode>')
 def api_product_by_barcode(barcode):
     conn = sqlite3.connect('inventory.db')
