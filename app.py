@@ -22,9 +22,9 @@ def init_db():
                   password TEXT, 
                   username TEXT,
                   role TEXT,
-                  permission TEXT DEFAULT 'view')''')  # 'view' or 'full'
+                  permission TEXT DEFAULT 'view')''')
     
-    # Create products table with model and serial numbers
+    # Create products table with all fields
     c.execute('''CREATE TABLE IF NOT EXISTS products
                  (id INTEGER PRIMARY KEY, 
                   name TEXT, 
@@ -57,11 +57,13 @@ def init_db():
         c.execute("INSERT INTO users (email, password, username, role, permission) VALUES (?,?,?,?,?)",
                   ('musthafa@purplerock.com', hash_password('Limara9*'), 'Admin', 'admin', 'full'))
         
-        # Add sample products with serial numbers
+        # Add sample products
         sample_products = [
             ('Laptop Pro', 'LAP001', 'XPS-15', 'SN2024001', 10, 999.99, 'Dell', 'Electronics', 'A1', 'S1', 'BARCODE001'),
             ('Wireless Mouse', 'MOU001', 'MX-Master', 'SN2024002', 50, 29.99, 'Logitech', 'Accessories', 'B2', 'S3', 'BARCODE002'),
             ('Mechanical Keyboard', 'KEY001', 'K95', 'SN2024003', 5, 89.99, 'Corsair', 'Accessories', 'A2', 'S2', 'BARCODE003'),
+            ('Gaming Monitor', 'MON001', 'Odyssey G7', 'SN2024004', 8, 499.99, 'Samsung', 'Electronics', 'C1', 'S1', 'BARCODE004'),
+            ('USB Hub', 'USB001', 'UH700', 'SN2024005', 25, 45.99, 'Anker', 'Accessories', 'B1', 'S4', 'BARCODE005'),
         ]
         for p in sample_products:
             c.execute("INSERT INTO products (name, sku, model_number, serial_number, stock, price, brand, category, rack_number, shelf_number, barcode) VALUES (?,?,?,?,?,?,?,?,?,?,?)", p)
@@ -115,6 +117,11 @@ body { font-family: 'Segoe UI', Arial; background: #f0f2f5; }
 .nav-item:hover { background: #2a2a4e; }
 .main-content { margin-left: 260px; padding: 20px; }
 .header { background: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+.search-section { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+.search-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+.search-row input, .search-row select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; min-width: 150px; }
+.search-btn { background: #667eea; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; }
+.reset-btn { background: #718096; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
 .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; }
 .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
@@ -147,6 +154,7 @@ button { padding: 6px 12px; margin: 0 3px; border: none; border-radius: 5px; cur
 <div class="nav-item" onclick="location.href='/add'">➕ Add Product</div>
 <div class="nav-item" onclick="location.href='/transactions'">📋 Transactions</div>
 <div class="nav-item" onclick="location.href='/barcode-scanner'">📷 Barcode Scanner</div>
+<div class="nav-item" onclick="location.href='/multi-scan'">🔢 Multi-Serial Scan</div>
 {% if session.permission == 'full' or session.role == 'admin' %}
 <div class="nav-item" onclick="location.href='/users'">👥 User Management</div>
 {% endif %}
@@ -162,9 +170,31 @@ button { padding: 6px 12px; margin: 0 3px; border: none; border-radius: 5px; cur
 </div>
 </div>
 
+<!-- Advanced Search Section -->
+<div class="search-section">
+<h3>🔍 Search Products</h3>
+<div class="search-row">
+<input type="text" id="searchProduct" placeholder="Product Name..." onkeyup="searchProducts()">
+<input type="text" id="searchModel" placeholder="Model Number..." onkeyup="searchProducts()">
+<select id="searchBrand" onchange="searchProducts()">
+    <option value="">All Brands</option>
+    {% for brand in brands %}
+    <option value="{{ brand }}">{{ brand }}</option>
+    {% endfor %}
+</select>
+<select id="searchCategory" onchange="searchProducts()">
+    <option value="">All Categories</option>
+    {% for category in categories %}
+    <option value="{{ category }}">{{ category }}</option>
+    {% endfor %}
+</select>
+<button class="reset-btn" onclick="resetSearch()">Reset</button>
+</div>
+</div>
+
 <div class="stats">
-<div class="stat-card"><div class="stat-number">{{ total_products }}</div><div class="stat-label">Total Products</div></div>
-<div class="stat-card"><div class="stat-number">{{ low_stock }}</div><div class="stat-label">Low Stock</div></div>
+<div class="stat-card"><div class="stat-number" id="totalDisplay">{{ total_products }}</div><div class="stat-label">Total Products</div></div>
+<div class="stat-card"><div class="stat-number" id="lowStockDisplay">{{ low_stock }}</div><div class="stat-label">Low Stock</div></div>
 <div class="stat-card"><div class="stat-number">${{ total_value }}</div><div class="stat-label">Inventory Value</div></div>
 <div class="stat-card"><div class="stat-number">{{ total_taken }}</div><div class="stat-label">Items Taken</div></div>
 </div>
@@ -175,18 +205,21 @@ button { padding: 6px 12px; margin: 0 3px; border: none; border-radius: 5px; cur
 
 <div class="table-container">
 <h3>Product Inventory</h3>
-<table>
+<div id="productsTable">
+<table id="inventoryTable">
 <thead>
-<th>Name</th><th>Model #</th><th>Serial #</th><th>Stock</th><th>Location</th><th>Actions</th>
+<th>Name</th><th>Model #</th><th>Serial #</th><th>Stock</th><th>Brand</th><th>Category</th><th>Location</th><th>Actions</th>
 </thead>
-<tbody>
+<tbody id="tableBody">
 {% for product in products %}
-<tr>
+<tr id="row-{{ product[0] }}">
 <td>{{ product[1] }}</td>
 <td>{{ product[3] or '-' }}</td>
 <td><small>{{ product[4] or '-' }}</small></td>
 <td {% if product[5] < 10 %}class="low-stock"{% endif %}>{{ product[5] }}</td>
-<td><span class="location-badge">Rack: {{ product[9] or 'N/A' }} | Shelf: {{ product[10] or 'N/A' }}</span></td>
+<td>{{ product[7] or '-' }}</td>
+<td>{{ product[8] or '-' }}</td>
+<td><span class="location-badge">Rack: {{ product[9] or 'N/A' }}</span></td>
 <td>
 {% if permission == 'full' or session.role == 'admin' %}
 <button class="btn-primary" onclick="updateStock({{ product[0] }}, {{ product[5] }})">Update</button>
@@ -202,8 +235,63 @@ button { padding: 6px 12px; margin: 0 3px; border: none; border-radius: 5px; cur
 </table>
 </div>
 </div>
+</div>
 
 <script>
+let allProducts = {{ products | tojson }};
+
+function searchProducts() {
+    let productName = document.getElementById('searchProduct').value.toLowerCase();
+    let modelNum = document.getElementById('searchModel').value.toLowerCase();
+    let brand = document.getElementById('searchBrand').value;
+    let category = document.getElementById('searchCategory').value;
+    
+    let filtered = allProducts.filter(p => {
+        let match = true;
+        if(productName && !p[1].toLowerCase().includes(productName)) match = false;
+        if(modelNum && !(p[3] || '').toLowerCase().includes(modelNum)) match = false;
+        if(brand && p[7] !== brand) match = false;
+        if(category && p[8] !== category) match = false;
+        return match;
+    });
+    
+    let tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    
+    filtered.forEach(p => {
+        let row = `<tr>
+            <td>${p[1]}</td>
+            <td>${p[3] || '-'}</td>
+            <td><small>${p[4] || '-'}</small></td>
+            <td class="${p[5] < 10 ? 'low-stock' : ''}">${p[5]}</td>
+            <td>${p[7] || '-'}</td>
+            <td>${p[8] || '-'}</td>
+            <td><span class="location-badge">Rack: ${p[9] || 'N/A'}</span></td>
+            <td>
+                ${p[5] < 10 ? '<span class="low-stock">⚠️ Low Stock</span>' : ''}
+                {% if permission == 'full' or session.role == 'admin' %}
+                <button class="btn-primary" onclick="updateStock(${p[0]}, ${p[5]})">Update</button>
+                <button class="btn-warning" onclick="takeMaterial(${p[0]}, '${p[1]}')">Take</button>
+                <button class="btn-danger" onclick="deleteProduct(${p[0]})">Delete</button>
+                {% endif %}
+            </td>
+        </tr>`;
+        tbody.innerHTML += row;
+    });
+    
+    document.getElementById('totalDisplay').innerText = filtered.length;
+    let lowStockCount = filtered.filter(p => p[5] < 10).length;
+    document.getElementById('lowStockDisplay').innerText = lowStockCount;
+}
+
+function resetSearch() {
+    document.getElementById('searchProduct').value = '';
+    document.getElementById('searchModel').value = '';
+    document.getElementById('searchBrand').value = '';
+    document.getElementById('searchCategory').value = '';
+    searchProducts();
+}
+
 {% if permission == 'full' or session.role == 'admin' %}
 function deleteProduct(id) {
     if(confirm('Delete this product?')) location.href = '/delete/' + id;
@@ -242,17 +330,31 @@ label { font-weight: bold; margin-top: 10px; display: block; }
 .scan-btn { background: #667eea; padding: 8px 16px; font-size: 14px; width: auto; margin-left: 10px; }
 .serial-row { display: flex; gap: 10px; align-items: center; }
 .serial-row input { flex: 1; }
+.dropdown-hint { font-size: 12px; color: #666; margin-top: -5px; margin-bottom: 5px; }
 </style>
 </head>
 <body>
 <div class="container">
 <h2>➕ Add New Product</h2>
 <form method="POST">
-<input type="text" name="name" placeholder="Product Name" required>
+<input type="text" name="name" placeholder="Product Name" list="productList" required>
+<datalist id="productList">
+{% for name in product_names %}
+<option value="{{ name }}">
+{% endfor %}
+</datalist>
+
 <input type="text" name="sku" placeholder="SKU" required>
 
 <div class="row">
-<div><input type="text" name="model_number" placeholder="Model Number"></div>
+<div>
+<input type="text" name="model_number" placeholder="Model Number" list="modelList">
+<datalist id="modelList">
+{% for model in models %}
+<option value="{{ model }}">
+{% endfor %}
+</datalist>
+</div>
 <div class="serial-row">
 <input type="text" name="serial_number" id="serial_number" placeholder="Serial Number">
 <button type="button" class="scan-btn" onclick="simulateScan()">📷 Scan</button>
@@ -265,8 +367,24 @@ label { font-weight: bold; margin-top: 10px; display: block; }
 </div>
 
 <div class="row">
-<div><input type="text" name="brand" placeholder="Brand"></div>
-<div><input type="text" name="category" placeholder="Category"></div>
+<div>
+<input type="text" name="brand" placeholder="Brand" list="brandList">
+<datalist id="brandList">
+{% for brand in brands %}
+<option value="{{ brand }}">
+{% endfor %}
+</datalist>
+<div class="dropdown-hint">💡 Type or select from existing brands</div>
+</div>
+<div>
+<input type="text" name="category" placeholder="Category" list="categoryList">
+<datalist id="categoryList">
+{% for category in categories %}
+<option value="{{ category }}">
+{% endfor %}
+</datalist>
+<div class="dropdown-hint">💡 Type or select from existing categories</div>
+</div>
 </div>
 
 <h3>📍 Storage Location</h3>
@@ -289,6 +407,154 @@ function simulateScan() {
         document.getElementById('serial_number').value = scanned;
         document.getElementById('barcode').value = scanned;
     }
+}
+</script>
+</body>
+</html>
+'''
+
+MULTI_SCAN_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head><title>Multi-Serial Scanner - Inventory Pro</title>
+<style>
+body { font-family: 'Segoe UI', Arial; background: #f0f2f5; margin: 0; padding: 20px; }
+.container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 12px; padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.scan-area { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+#serialInput { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #667eea; border-radius: 8px; font-family: monospace; }
+.serial-list { background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 300px; overflow-y: auto; margin: 20px 0; }
+.serial-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+.serial-item:hover { background: #f0f2ff; }
+.remove-btn { background: #e53e3e; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; }
+.product-select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+.btn { padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+.btn-primary { background: #667eea; color: white; }
+.btn-success { background: #48bb78; color: white; }
+.btn-danger { background: #e53e3e; color: white; }
+.btn-back { background: #718096; color: white; }
+.stats { background: #e8f5e9; padding: 10px; border-radius: 5px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h2>🔢 Multi-Serial Barcode Scanner</h2>
+<button class="btn-back" onclick="location.href='/dashboard'">← Back to Dashboard</button>
+</div>
+
+<div class="scan-area">
+<h3>📷 USB Barcode Scanner Mode</h3>
+<p>Scan items with your USB barcode reader. Each scan will be added automatically.</p>
+<input type="text" id="serialInput" placeholder="Scan or type serial number here..." autofocus>
+<p class="stats">📊 Scanned: <span id="scanCount">0</span> items</p>
+</div>
+
+<div class="product-select">
+<label>Select Product for these serials:</label>
+<select id="productSelect" class="product-select">
+<option value="">-- Select a product --</option>
+{% for product in products %}
+<option value="{{ product[0] }}">{{ product[1] }} - {{ product[3] or 'No Model' }} (Stock: {{ product[5] }})</option>
+{% endfor %}
+</select>
+</div>
+
+<div class="serial-list" id="serialList">
+<div style="padding: 20px; text-align: center; color: #999;">No serials scanned yet. Start scanning!</div>
+</div>
+
+<div style="margin-top: 20px;">
+<button class="btn btn-success" onclick="saveAllSerials()">💾 Save All ({{ serials|length }} items)</button>
+<button class="btn btn-danger" onclick="clearAll()">🗑️ Clear All</button>
+</div>
+</div>
+
+<script>
+let scannedSerials = [];
+
+document.getElementById('serialInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        let serial = this.value.trim();
+        if (serial && !scannedSerials.includes(serial)) {
+            scannedSerials.push(serial);
+            updateSerialList();
+            this.value = '';
+        }
+    }
+});
+
+function updateSerialList() {
+    let container = document.getElementById('serialList');
+    let countSpan = document.getElementById('scanCount');
+    countSpan.innerText = scannedSerials.length;
+    
+    if (scannedSerials.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No serials scanned yet. Start scanning!</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    scannedSerials.forEach((serial, index) => {
+        let div = document.createElement('div');
+        div.className = 'serial-item';
+        div.innerHTML = `
+            <span>📦 ${serial}</span>
+            <button class="remove-btn" onclick="removeSerial(${index})">Remove</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function removeSerial(index) {
+    scannedSerials.splice(index, 1);
+    updateSerialList();
+}
+
+function clearAll() {
+    if(confirm('Clear all scanned serials?')) {
+        scannedSerials = [];
+        updateSerialList();
+    }
+}
+
+function saveAllSerials() {
+    let productId = document.getElementById('productSelect').value;
+    let estimate = prompt('Enter Estimate/Reference Number for this batch:', 'EST-' + Date.now());
+    
+    if (!productId) {
+        alert('Please select a product first!');
+        return;
+    }
+    if (!estimate) {
+        alert('Please enter an estimate number!');
+        return;
+    }
+    if (scannedSerials.length === 0) {
+        alert('No serials to save!');
+        return;
+    }
+    
+    fetch('/api/save-multiple-serials', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            product_id: productId,
+            serials: scannedSerials,
+            estimate: estimate
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            alert(`✅ Successfully added ${scannedSerials.length} items!`);
+            scannedSerials = [];
+            updateSerialList();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
 }
 </script>
 </body>
@@ -348,7 +614,7 @@ input, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius
 <tr>
 <td>{{ user[1] }}</td>
 <td>{{ user[3] }}</td>
-<td><span class="permission-{{ 'full' if user[5] == 'full' else 'view' }}">{{ user[4] }}</span></td>
+<td>{{ user[4] }}</td>
 <td><span class="permission-{{ 'full' if user[5] == 'full' else 'view' }}">{{ user[5] | upper }}</span></td>
 <td>
 {% if user[1] != 'musthafa@purplerock.com' %}
@@ -484,7 +750,7 @@ function startScanner() {
             }
         })
         .catch(err => {
-            alert('Camera access denied. Please allow camera permissions.');
+            alert('Camera access denied.');
         });
 }
 
@@ -568,6 +834,12 @@ def dashboard():
     c.execute("SELECT * FROM products")
     products = c.fetchall()
     
+    c.execute("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != ''")
+    brands = [row[0] for row in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ''")
+    categories = [row[0] for row in c.fetchall()]
+    
     c.execute("SELECT COUNT(*) FROM transactions")
     total_taken = c.fetchone()[0]
     conn.close()
@@ -580,7 +852,9 @@ def dashboard():
     now = datetime.now().strftime('%Y%m%d')
     
     return render_template_string(DASHBOARD_TEMPLATE, 
-                                 products=products, 
+                                 products=products,
+                                 brands=brands,
+                                 categories=categories,
                                  total_products=total_products, 
                                  low_stock=low_stock, 
                                  total_value=f"{total_value:.2f}",
@@ -595,7 +869,23 @@ def add_product():
         return redirect('/')
     
     if session.get('permission') != 'full' and session.get('role') != 'admin':
-        return "Access Denied. View only users cannot add products.", 403
+        return "Access Denied", 403
+    
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT DISTINCT name FROM products WHERE name IS NOT NULL")
+    product_names = [row[0] for row in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT model_number FROM products WHERE model_number IS NOT NULL AND model_number != ''")
+    models = [row[0] for row in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != ''")
+    brands = [row[0] for row in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ''")
+    categories = [row[0] for row in c.fetchall()]
+    conn.close()
     
     if request.method == 'POST':
         name = request.form['name']
@@ -621,7 +911,63 @@ def add_product():
         
         return redirect('/dashboard')
     
-    return render_template_string(ADD_TEMPLATE)
+    return render_template_string(ADD_TEMPLATE, 
+                                 product_names=product_names,
+                                 models=models,
+                                 brands=brands,
+                                 categories=categories)
+
+@app.route('/multi-scan')
+def multi_scan():
+    if 'user_id' not in session:
+        return redirect('/')
+    
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    c.execute("SELECT id, name, model_number, stock FROM products")
+    products = c.fetchall()
+    conn.close()
+    
+    return render_template_string(MULTI_SCAN_TEMPLATE, products=products, serials=[])
+
+@app.route('/api/save-multiple-serials', methods=['POST'])
+def save_multiple_serials():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'})
+    
+    data = request.json
+    product_id = data['product_id']
+    serials = data['serials']
+    estimate = data['estimate']
+    
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    
+    # Get product info
+    c.execute("SELECT name, stock FROM products WHERE id=?", (product_id,))
+    product = c.fetchone()
+    
+    if product:
+        # Update stock
+        new_stock = product[1] + len(serials)
+        c.execute("UPDATE products SET stock=? WHERE id=?", (new_stock, product_id))
+        
+        # Add each serial as a separate transaction
+        from datetime import datetime
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        for serial in serials:
+            c.execute("""INSERT INTO transactions 
+                         (product_id, product_name, serial_number, quantity_taken, estimate_number, taken_by, date_taken, notes) 
+                         VALUES (?,?,?,?,?,?,?,?)""",
+                      (product_id, product[0], serial, 1, estimate, session.get('username', 'admin'), now, 'Bulk scan addition'))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': f'Added {len(serials)} items'})
+    
+    conn.close()
+    return jsonify({'success': False, 'message': 'Product not found'})
 
 @app.route('/users')
 def users():
@@ -629,7 +975,7 @@ def users():
         return redirect('/')
     
     if session.get('permission') != 'full' and session.get('role') != 'admin':
-        return "Access Denied. Only admins can access user management.", 403
+        return "Access Denied", 403
     
     conn = sqlite3.connect('inventory.db')
     c = conn.cursor()
@@ -686,7 +1032,7 @@ def take_material(id, quantity, estimate):
         return redirect('/')
     
     if session.get('permission') != 'full' and session.get('role') != 'admin':
-        return "Access Denied. View only users cannot take materials.", 403
+        return "Access Denied", 403
     
     conn = sqlite3.connect('inventory.db')
     c = conn.cursor()
