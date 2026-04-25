@@ -1,9 +1,8 @@
-from flask import Flask, request, redirect, session, render_template_string, jsonify, url_for
+from flask import Flask, request, redirect, session, render_template_string, jsonify
 from werkzeug.utils import secure_filename
 import sqlite3
 import hashlib
 from datetime import datetime
-import json
 import os
 
 app = Flask(__name__)
@@ -70,31 +69,23 @@ def log_activity(user_id, user_name, action, details='', ip=''):
     conn.commit()
     conn.close()
 
-# ============ TEMPLATES ============
+# ============ SIMPLE TEMPLATES (All in one) ============
 
 LOGIN_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Login - Inventory System</title>
+<head><title>Login</title>
 <style>
-body { font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-.login-box { background: white; padding: 40px; border-radius: 10px; width: 350px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-.logo { font-size: 50px; margin-bottom: 10px; }
-.logo-image { max-width: 150px; margin-bottom: 20px; }
-input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-.error { color: red; margin-top: 10px; }
-h2 { margin-bottom: 20px; color: #333; }
+body{font-family:Arial;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+.login-box{background:white;padding:40px;border-radius:10px;width:350px;text-align:center}
+input{width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:5px}
+button{width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:5px;cursor:pointer}
+.error{color:red;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="login-box">
-{% if logo %}
-<img src="{{ logo }}" class="logo-image">
-{% else %}
-<div class="logo">📦</div>
-{% endif %}
-<h2>Inventory Pro</h2>
+<h2>📦 Inventory Pro</h2>
 <form method="POST">
 <input type="email" name="email" placeholder="Email" required>
 <input type="password" name="password" placeholder="Password" required>
@@ -109,133 +100,78 @@ h2 { margin-bottom: 20px; color: #333; }
 DASHBOARD_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Dashboard - Inventory Pro</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<head><title>Dashboard</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Segoe UI', Arial; background: #f0f2f5; }
-.sidebar { width: 260px; background: #1a1a2e; color: white; position: fixed; height: 100%; overflow-y: auto; }
-.sidebar-header { padding: 20px; text-align: center; border-bottom: 1px solid #2a2a4e; }
-.sidebar-header img { max-width: 150px; max-height: 60px; margin-bottom: 10px; }
-.nav-item { padding: 15px 25px; cursor: pointer; transition: 0.3s; }
-.nav-item:hover { background: #2a2a4e; }
-.main-content { margin-left: 260px; padding: 20px; }
-.header { background: white; padding: 15px 25px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-.user-info { display: flex; align-items: center; gap: 15px; }
-.permission-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; }
-.permission-full { background: #c6f6d5; color: #22543d; }
-.permission-view { background: #fed7d7; color: #742a2a; }
-.search-section { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
-.search-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
-.search-row input, .search-row select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; flex: 1; min-width: 150px; }
-.reset-btn { background: #718096; color: white; padding: 10px 30px; border: none; border-radius: 5px; cursor: pointer; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-.stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; }
-.stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
-.stat-label { color: #666; margin-top: 5px; }
-.table-container { background: white; border-radius: 12px; padding: 20px; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }
-th { background: #f8f9fa; }
-button { padding: 6px 12px; margin: 0 3px; border: none; border-radius: 5px; cursor: pointer; }
-.btn-primary { background: #667eea; color: white; }
-.btn-danger { background: #e53e3e; color: white; }
-.btn-warning { background: #ed8936; color: white; }
-.add-btn { background: #48bb78; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px; }
-.low-stock { color: #e53e3e; font-weight: bold; }
-.location-badge { background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 12px; display: inline-block; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial;background:#f0f2f5}
+.sidebar{width:250px;background:#1a1a2e;color:white;position:fixed;height:100%}
+.sidebar-header{padding:20px;text-align:center;border-bottom:1px solid #2a2a4e}
+.nav-item{padding:15px 25px;cursor:pointer}
+.nav-item:hover{background:#2a2a4e}
+.main-content{margin-left:250px;padding:20px}
+.header{background:white;padding:15px 20px;border-radius:10px;margin-bottom:20px;display:flex;justify-content:space-between}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:20px}
+.stat-card{background:white;padding:20px;border-radius:10px;text-align:center}
+.stat-number{font-size:32px;font-weight:bold;color:#667eea}
+table{width:100%;background:white;border-radius:10px;border-collapse:collapse}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd}
+th{background:#f8f9fa}
+button{padding:6px 12px;margin:0 3px;border:none;border-radius:5px;cursor:pointer}
+.btn-primary{background:#667eea;color:white}
+.btn-danger{background:#e53e3e;color:white}
+.btn-warning{background:#ed8936;color:white}
+.add-btn{background:#48bb78;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;margin-bottom:20px}
+.low-stock{color:#e53e3e;font-weight:bold}
 </style>
 </head>
 <body>
 <div class="sidebar">
-<div class="sidebar-header">
-{% if logo %}<img src="{{ logo }}" alt="Logo">{% else %}<h3>📦 Inventory Pro</h3>{% endif %}
-</div>
+<div class="sidebar-header"><h3>📦 Inventory Pro</h3></div>
 <div class="nav-item" onclick="location.href='/dashboard'">📊 Dashboard</div>
 <div class="nav-item" onclick="location.href='/add'">➕ Add Product</div>
 <div class="nav-item" onclick="location.href='/transactions'">📋 Transactions</div>
-<div class="nav-item" onclick="location.href='/barcode-scanner'">📷 Barcode Scanner</div>
-<div class="nav-item" onclick="location.href='/multi-scan'">🔢 Multi-Serial Scan</div>
-{% if session.permission == 'full' or session.role == 'admin' %}
-<div class="nav-item" onclick="location.href='/users'">👥 User Management</div>
-<div class="nav-item" onclick="location.href='/logo-settings'">🎨 Logo Settings</div>
-{% endif %}
-<div class="nav-item" onclick="location.href='/activity-logs'">📜 Activity Logs</div>
+<div class="nav-item" onclick="location.href='/users'">👥 Users</div>
 <div class="nav-item" onclick="location.href='/logout'">🚪 Logout</div>
 </div>
 
 <div class="main-content">
-<div class="header">
-<h2>Dashboard</h2>
-<div class="user-info">
-<span class="user-name">{{ username }}</span>
-<span class="permission-badge permission-{{ 'full' if permission == 'full' else 'view' }}">{{ full_name }} ({{ permission | upper }})</span>
-</div>
-</div>
-
-<div class="search-section">
-<h3>🔍 Search Products</h3>
-<div class="search-row">
-<input type="text" id="searchProduct" placeholder="Product Name..." onkeyup="searchProducts()">
-<input type="text" id="searchModel" placeholder="Model Number..." onkeyup="searchProducts()">
-<select id="searchBrand" onchange="searchProducts()"><option value="">All Brands</option>{% for brand in brands %}<option value="{{ brand }}">{{ brand }}</option>{% endfor %}</select>
-<select id="searchCategory" onchange="searchProducts()"><option value="">All Categories</option>{% for category in categories %}<option value="{{ category }}">{{ category }}</option>{% endfor %}</select>
-<button class="reset-btn" onclick="resetSearch()">Reset</button>
-</div>
-</div>
+<div class="header"><h2>Dashboard</h2><div>{{ full_name }} ({{ permission }})</div></div>
 
 <div class="stats">
-<div class="stat-card"><div class="stat-number" id="totalDisplay">{{ total_products }}</div><div class="stat-label">Total Products</div></div>
-<div class="stat-card"><div class="stat-number" id="lowStockDisplay">{{ low_stock }}</div><div class="stat-label">Low Stock</div></div>
-<div class="stat-card"><div class="stat-number">AED {{ total_value }}</div><div class="stat-label">Inventory Value</div></div>
-<div class="stat-card"><div class="stat-number">{{ total_transactions }}</div><div class="stat-label">Transactions</div></div>
+<div class="stat-card"><div class="stat-number">{{ total_products }}</div><div>Total Products</div></div>
+<div class="stat-card"><div class="stat-number">{{ low_stock }}</div><div>Low Stock</div></div>
+<div class="stat-card"><div class="stat-number">AED {{ total_value }}</div><div>Inventory Value</div></div>
+<div class="stat-card"><div class="stat-number">{{ total_transactions }}</div><div>Transactions</div></div>
 </div>
 
-{% if permission == 'full' or session.role == 'admin' %}<button class="add-btn" onclick="location.href='/add'">+ Add New Product</button>{% endif %}
+<button class="add-btn" onclick="location.href='/add'">+ Add Product</button>
 
-<div class="table-container">
-<h3>Product Inventory</h3>
-<table id="inventoryTable"><thead><th>Name</th><th>Model #</th><th>Stock Qty</th><th>Unit</th><th>Price (AED)</th><th>Location</th><th>Actions</th></thead>
-<tbody id="tableBody">
-{% for product in products %}
-<tr><td>{{ product[1] }}</td><td>{{ product[3] or '-' }}</td><td class="{% if product[5] < 10 %}low-stock{% endif %}">{{ product[5] }}</td><td>{{ product[6] }}</td><td>AED {{ "%.2f"|format(product[7] or 0) }}</td><td><span class="location-badge">Rack: {{ product[9] or 'N/A' }} | Shelf: {{ product[10] or 'N/A' }}</span></td>
-<td>{% if permission == 'full' or session.role == 'admin' %}<button class="btn-primary" onclick="editProduct({{ product[0] }})">✏️ Edit</button><button class="btn-primary" onclick="updateStock({{ product[0] }}, {{ product[5] }})">Update</button><button class="btn-warning" onclick="takeMaterial({{ product[0] }}, '{{ product[1] }}')">Take</button><button class="btn-danger" onclick="deleteProduct({{ product[0] }})">Delete</button>{% else %}<button disabled>View Only</button>{% endif %}</td></tr>
+<table>
+<thead><tr><th>Name</th><th>Model</th><th>Stock</th><th>Unit</th><th>Price</th><th>Location</th><th>Actions</th></tr></thead>
+<tbody>
+{% for p in products %}
+<tr>
+<td>{{ p[1] }}</td><td>{{ p[3] or '-' }}</td>
+<td class="{% if p[5] < 10 %}low-stock{% endif %}">{{ p[5] }}</td>
+<td>{{ p[6] }}</td><td>AED {{ "%.2f"|format(p[7] or 0) }}</td>
+<td>Rack:{{ p[9] or 'N/A' }} Shelf:{{ p[10] or 'N/A' }}</td>
+<td>
+<button class="btn-primary" onclick="editProduct({{ p[0] }})">Edit</button>
+<button class="btn-primary" onclick="updateStock({{ p[0] }}, {{ p[5] }})">Update</button>
+<button class="btn-warning" onclick="takeMaterial({{ p[0] }}, '{{ p[1] }}')">Take</button>
+<button class="btn-danger" onclick="deleteProduct({{ p[0] }})">Delete</button>
+</td>
+</tr>
 {% endfor %}
 </tbody>
 </table>
 </div>
-</div>
 
 <script>
-let allProducts = {{ products | tojson }};
-function searchProducts() {
-    let productName = document.getElementById('searchProduct').value.toLowerCase();
-    let modelNum = document.getElementById('searchModel').value.toLowerCase();
-    let brand = document.getElementById('searchBrand').value;
-    let category = document.getElementById('searchCategory').value;
-    let filtered = allProducts.filter(p => {
-        let match = true;
-        if(productName && !p[1].toLowerCase().includes(productName)) match = false;
-        if(modelNum && !(p[3] || '').toLowerCase().includes(modelNum)) match = false;
-        if(brand && p[8] !== brand) match = false;
-        if(category && p[9] !== category) match = false;
-        return match;
-    });
-    let tbody = document.getElementById('tableBody');
-    tbody.innerHTML = '';
-    filtered.forEach(p => {
-        tbody.innerHTML += `<tr><td>${p[1]}</td><td>${p[3] || '-'}</td><td class="${p[5] < 10 ? 'low-stock' : ''}">${p[5]}</td><td>${p[6]}</td><td>AED ${parseFloat(p[7] || 0).toFixed(2)}</td><td><span class="location-badge">Rack: ${p[9] || 'N/A'} | Shelf: ${p[10] || 'N/A'}</span></td><td>{% if permission == 'full' or session.role == 'admin' %}<button class="btn-primary" onclick="editProduct(${p[0]})">✏️ Edit</button><button class="btn-primary" onclick="updateStock(${p[0]}, ${p[5]})">Update</button><button class="btn-warning" onclick="takeMaterial(${p[0]}, '${p[1]}')">Take</button><button class="btn-danger" onclick="deleteProduct(${p[0]})">Delete</button>{% else %}<button disabled>View Only</button>{% endif %}</td></tr>`;
-    });
-    document.getElementById('totalDisplay').innerText = filtered.length;
-    document.getElementById('lowStockDisplay').innerText = filtered.filter(p => p[5] < 10).length;
-}
-function resetSearch() { document.getElementById('searchProduct').value = ''; document.getElementById('searchModel').value = ''; document.getElementById('searchBrand').value = ''; document.getElementById('searchCategory').value = ''; searchProducts(); }
-{% if permission == 'full' or session.role == 'admin' %}
-function editProduct(id) { window.location.href = '/edit/' + id; }
-function deleteProduct(id) { if(confirm('Delete this product?')) location.href = '/delete/' + id; }
-function updateStock(id, current) { let stock = prompt('Enter new stock quantity:', current); if(stock) location.href = '/update/' + id + '/' + stock; }
-function takeMaterial(id, name) { let estimate = prompt('Estimate Number:', 'EST-' + Date.now()); let quantity = prompt('Quantity:', '1'); if(estimate && quantity) location.href = '/take/' + id + '/' + quantity + '/' + encodeURIComponent(estimate); }
-{% endif %}
+function editProduct(id){ window.location.href='/edit/'+id; }
+function deleteProduct(id){ if(confirm('Delete?')) location.href='/delete/'+id; }
+function updateStock(id,current){ let stock=prompt('New stock:',current); if(stock) location.href='/update/'+id+'/'+stock; }
+function takeMaterial(id,name){ let est=prompt('Estimate number:'); let qty=prompt('Quantity:'); if(est && qty) location.href='/take/'+id+'/'+qty+'/'+est; }
 </script>
 </body>
 </html>
@@ -244,35 +180,32 @@ function takeMaterial(id, name) { let estimate = prompt('Estimate Number:', 'EST
 ADD_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Add Product - Inventory Pro</title>
+<head><title>Add Product</title>
 <style>
-body { font-family: 'Segoe UI', Arial; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-.container { background: white; padding: 30px; border-radius: 12px; width: 650px; }
-input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-.row { display: flex; gap: 15px; }
-.row > div { flex: 1; }
-button { width: 100%; padding: 12px; background: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
-.back { background: #718096; }
+body{font-family:Arial;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.container{background:white;padding:30px;border-radius:10px;width:600px}
+input,select{width:100%;padding:10px;margin:10px 0;border:1px solid #ddd;border-radius:5px}
+.row{display:flex;gap:15px}
+button{width:100%;padding:12px;background:#48bb78;color:white;border:none;border-radius:5px;cursor:pointer}
+.back{background:#718096;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="container">
-<h2>➕ Add New Product</h2>
+<h2>➕ Add Product</h2>
 <form method="POST">
-<input type="text" name="name" placeholder="Product Name (Optional)">
-<input type="text" name="sku" placeholder="SKU (Required)" required>
-<div class="row"><div><input type="text" name="model_number" placeholder="Model Number"></div><div><input type="text" name="serial_number" placeholder="Serial Number"></div></div>
-<div class="row"><div><input type="number" step="any" name="stock" placeholder="Stock Quantity" required></div><div><select name="unit_type"><option value="nos">Numbers (Nos)</option><option value="meters">Meters</option></select></div></div>
-<div class="row"><div><input type="number" step="0.01" name="price" placeholder="Price (AED) - Optional"></div><div><input type="text" name="brand" placeholder="Brand" list="brandList"></div></div>
-<input type="text" name="category" placeholder="Category" list="categoryList">
-<h3>📍 Storage Location</h3>
-<div class="row"><div><input type="text" name="rack_number" placeholder="Rack Number"></div><div><input type="text" name="shelf_number" placeholder="Shelf Number"></div></div>
-<input type="text" name="barcode" placeholder="Barcode">
-<datalist id="brandList">{% for brand in brands %}<option value="{{ brand }}">{% endfor %}</datalist>
-<datalist id="categoryList">{% for category in categories %}<option value="{{ category }}">{% endfor %}</datalist>
-<button type="submit">💾 Save Product</button>
+<input name="name" placeholder="Product Name">
+<input name="sku" placeholder="SKU" required>
+<div class="row"><div><input name="model_number" placeholder="Model"></div><div><input name="serial_number" placeholder="Serial"></div></div>
+<div class="row"><div><input type="number" step="any" name="stock" placeholder="Stock" required></div><div><select name="unit_type"><option value="nos">Numbers</option><option value="meters">Meters</option></select></div></div>
+<div class="row"><div><input type="number" step="0.01" name="price" placeholder="Price AED"></div><div><input name="brand" placeholder="Brand"></div></div>
+<input name="category" placeholder="Category">
+<h3>Location</h3>
+<div class="row"><div><input name="rack_number" placeholder="Rack"></div><div><input name="shelf_number" placeholder="Shelf"></div></div>
+<input name="barcode" placeholder="Barcode">
+<button type="submit">Save</button>
 </form>
-<button class="back" onclick="location.href='/dashboard'">← Back</button>
+<button class="back" onclick="location.href='/dashboard'">Back</button>
 </div>
 </body>
 </html>
@@ -280,37 +213,106 @@ button { width: 100%; padding: 12px; background: #48bb78; color: white; border: 
 
 EDIT_TEMPLATE = '''
 <!DOCTYPE html>
-<html><head><title>Edit Product</title><style>
-body{font-family:Arial;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:20px}
-.container{background:white;padding:30px;border-radius:12px;width:650px}
+<html>
+<head><title>Edit Product</title>
+<style>
+body{font-family:Arial;background:#f0f2f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.container{background:white;padding:30px;border-radius:10px;width:600px}
 input,select{width:100%;padding:10px;margin:10px 0;border:1px solid #ddd;border-radius:5px}
-.row{display:flex;gap:15px}.row>div{flex:1}
-button{width:100%;padding:12px;background:#48bb78;color:white;border:none;border-radius:5px;cursor:pointer;margin-top:10px}
-.back{background:#718096}
-</style></head>
+.row{display:flex;gap:15px}
+button{width:100%;padding:12px;background:#48bb78;color:white;border:none;border-radius:5px;cursor:pointer}
+.back{background:#718096;margin-top:10px}
+</style>
+</head>
 <body>
-<div class="container"><h2>✏️ Edit Product</h2>
+<div class="container">
+<h2>✏️ Edit Product</h2>
 <form method="POST">
-<input name="name" placeholder="Product Name" value="{{ product[1] }}">
-<input name="sku" placeholder="SKU" value="{{ product[2] }}">
-<div class="row"><div><input name="model_number" placeholder="Model Number" value="{{ product[3] or '' }}"></div><div><input name="serial_number" placeholder="Serial Number" value="{{ product[4] or '' }}"></div></div>
+<input name="name" value="{{ product[1] }}">
+<input name="sku" value="{{ product[2] }}">
+<div class="row"><div><input name="model_number" value="{{ product[3] or '' }}"></div><div><input name="serial_number" value="{{ product[4] or '' }}"></div></div>
 <div class="row"><div><input type="number" step="any" name="stock" value="{{ product[5] }}"></div><div><select name="unit_type"><option value="nos" {% if product[6]=='nos' %}selected{% endif %}>Numbers</option><option value="meters" {% if product[6]=='meters' %}selected{% endif %}>Meters</option></select></div></div>
 <div class="row"><div><input type="number" step="0.01" name="price" value="{{ product[7] or '' }}"></div><div><input name="brand" value="{{ product[8] or '' }}"></div></div>
 <input name="category" value="{{ product[9] or '' }}">
 <div class="row"><div><input name="rack_number" value="{{ product[10] or '' }}"></div><div><input name="shelf_number" value="{{ product[11] or '' }}"></div></div>
 <input name="barcode" value="{{ product[12] or '' }}">
-<button type="submit">💾 Update</button>
-</form><button class="back" onclick="location.href='/dashboard'">← Back</button></div>
-</body></html>
+<button type="submit">Update</button>
+</form>
+<button class="back" onclick="location.href='/dashboard'">Back</button>
+</div>
+</body>
+</html>
 '''
 
-# Simplified templates for other pages (add these to avoid errors)
-MULTI_SCAN_TEMPLATE = '<!DOCTYPE html><html><body><h2>Multi-Scan</h2><a href="/dashboard">Back</a></body></html>'
-USERS_TEMPLATE = '<!DOCTYPE html><html><body><h2>User Management</h2><a href="/dashboard">Back</a></body></html>'
-TRANSACTIONS_TEMPLATE = '<!DOCTYPE html><html><body><h2>Transactions</h2><a href="/dashboard">Back</a></body></html>'
-BARCODE_TEMPLATE = '<!DOCTYPE html><html><body><h2>Barcode Scanner</h2><a href="/dashboard">Back</a></body></html>'
-ACTIVITY_LOGS_TEMPLATE = '<!DOCTYPE html><html><body><h2>Activity Logs</h2><a href="/dashboard">Back</a></body></html>'
-LOGO_SETTINGS_TEMPLATE = '<!DOCTYPE html><html><body><h2>Logo Settings</h2><a href="/dashboard">Back</a></body></html>'
+USERS_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head><title>Users</title>
+<style>
+body{font-family:Arial;background:#f0f2f5;padding:20px}
+.container{background:white;border-radius:10px;padding:20px;max-width:800px;margin:0 auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #ddd}
+.add-form{background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px}
+input,select{padding:8px;margin:5px;border:1px solid #ddd;border-radius:5px}
+.btn{background:#48bb78;color:white;padding:8px 16px;border:none;border-radius:5px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>👥 User Management</h2>
+<div class="add-form">
+<h3>Add User</h3>
+<form method="POST" action="/add-user">
+<input type="email" name="email" placeholder="Email" required>
+<input type="text" name="full_name" placeholder="Full Name" required>
+<input type="text" name="username" placeholder="Username" required>
+<input type="password" name="password" placeholder="Password" required>
+<select name="permission"><option value="view">View Only</option><option value="full">Full Access</option></select>
+<button type="submit" class="btn">Add User</button>
+</form>
+</div>
+<h3>Existing Users</h3>
+<table><thead><th>Email</th><th>Full Name</th><th>Permission</th><th>Actions</th></thead>
+<tbody>
+{% for user in users %}
+<tr><td>{{ user[1] }}</td><td>{{ user[4] or '-' }}</td><td>{{ user[6] }}</td>
+<td>{% if user[1] != 'musthafa@purplerock.com' %}<a href="/delete-user/{{ user[0] }}" onclick="return confirm('Delete?')">Delete</a>{% else %}Admin{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<button onclick="location.href='/dashboard'">Back</button>
+</div>
+</body>
+</html>
+'''
+
+TRANSACTIONS_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head><title>Transactions</title>
+<style>
+body{font-family:Arial;background:#f0f2f5;padding:20px}
+.container{background:white;border-radius:10px;padding:20px;max-width:1000px;margin:0 auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #ddd}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>📋 Transactions</h2>
+<table><thead><th>Date</th><th>Estimate</th><th>Product</th><th>Quantity</th><th>Taken By</th></thead>
+<tbody>
+{% for t in transactions %}
+<tr><td>{{ t[7] }}</td><td><strong>{{ t[1] }}</strong></td><td>{{ t[3] }}</td><td>{{ t[4] }} {{ t[5] }}</td><td>{{ t[6] }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+<button onclick="location.href='/dashboard'">Back</button>
+</div>
+</body>
+</html>
+'''
 
 # ============ ROUTES ============
 
@@ -330,17 +332,9 @@ def login():
             session['full_name'] = user[4]
             session['role'] = user[5]
             session['permission'] = user[6]
-            log_activity(user[0], user[3], 'LOGIN', f'User {email} logged in')
             return redirect('/dashboard')
         return render_template_string(LOGIN_TEMPLATE, error='Invalid credentials')
-    
-    conn = sqlite3.connect('inventory.db')
-    c = conn.cursor()
-    c.execute("SELECT value FROM settings WHERE key='logo_path'")
-    result = c.fetchone()
-    logo = result[0] if result else None
-    conn.close()
-    return render_template_string(LOGIN_TEMPLATE, logo=logo)
+    return render_template_string(LOGIN_TEMPLATE)
 
 @app.route('/dashboard')
 def dashboard():
@@ -350,33 +344,24 @@ def dashboard():
     c = conn.cursor()
     c.execute("SELECT * FROM products")
     products = c.fetchall()
-    c.execute("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand!=''")
-    brands = [r[0] for r in c.fetchall()]
-    c.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category!=''")
-    categories = [r[0] for r in c.fetchall()]
     c.execute("SELECT COUNT(DISTINCT estimate_number) FROM transactions")
     total_transactions = c.fetchone()[0] or 0
-    c.execute("SELECT value FROM settings WHERE key='logo_path'")
-    result = c.fetchone()
-    logo = result[0] if result else None
     conn.close()
     total_products = len(products)
     low_stock = sum(1 for p in products if p[5] < 10)
     total_value = sum((p[7] or 0) * p[5] for p in products)
     return render_template_string(DASHBOARD_TEMPLATE,
-         products=products, brands=brands, categories=categories,
-         total_products=total_products, low_stock=low_stock,
+         products=products, total_products=total_products, low_stock=low_stock,
          total_value=f"{total_value:.2f}", total_transactions=total_transactions,
-         username=session.get('username','User'), full_name=session.get('full_name','Admin'),
-         permission=session.get('permission','view'), logo=logo)
+         full_name=session.get('full_name','Admin'), permission=session.get('permission','view'))
 
-@app.route('/add', methods=['GET','POST'])
+@app.route('/add', methods=['GET', 'POST'])
 def add_product():
-    if 'user_id' not in session: return redirect('/')
-    if session.get('permission')!='full' and session.get('role')!='admin': return "Access Denied",403
-    conn = sqlite3.connect('inventory.db')
-    c = conn.cursor()
+    if 'user_id' not in session:
+        return redirect('/')
     if request.method == 'POST':
+        conn = sqlite3.connect('inventory.db')
+        c = conn.cursor()
         c.execute("INSERT INTO products (name,sku,model_number,serial_number,stock,unit_type,price,brand,category,rack_number,shelf_number,barcode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                   (request.form.get('name',''), request.form['sku'], request.form.get('model_number',''),
                    request.form.get('serial_number',''), float(request.form['stock']), request.form['unit_type'],
@@ -384,26 +369,35 @@ def add_product():
                    request.form.get('category',''), request.form.get('rack_number',''), request.form.get('shelf_number',''),
                    request.form.get('barcode','')))
         conn.commit()
-        log_activity(session['user_id'], session.get('username','User'), 'ADD_PRODUCT', f'Added product: {request.form["sku"]}')
         conn.close()
         return redirect('/dashboard')
-    c.execute("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand!=''")
-    brands = [r[0] for r in c.fetchall()]
-    c.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category!=''")
-    categories = [r[0] for r in c.fetchall()]
-    conn.close()
-    return render_template_string(ADD_TEMPLATE, brands=brands, categories=categories)
+    return render_template_string(ADD_TEMPLATE)
 
-@app.route('/users')
-def users():
-    if 'user_id' not in session: return redirect('/')
-    if session.get('permission')!='full' and session.get('role')!='admin': return "Access Denied",403
-    return render_template_string(USERS_TEMPLATE)
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit_product(id):
+    if 'user_id' not in session:
+        return redirect('/')
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    if request.method == 'POST':
+        c.execute("UPDATE products SET name=?, sku=?, model_number=?, serial_number=?, stock=?, unit_type=?, price=?, brand=?, category=?, rack_number=?, shelf_number=?, barcode=? WHERE id=?",
+                  (request.form['name'], request.form['sku'], request.form.get('model_number',''),
+                   request.form.get('serial_number',''), float(request.form['stock']), request.form['unit_type'],
+                   float(request.form['price']) if request.form.get('price') else 0, request.form.get('brand',''),
+                   request.form.get('category',''), request.form.get('rack_number',''), request.form.get('shelf_number',''),
+                   request.form.get('barcode',''), id))
+        conn.commit()
+        conn.close()
+        return redirect('/dashboard')
+    c.execute("SELECT * FROM products WHERE id=?", (id,))
+    product = c.fetchone()
+    conn.close()
+    return render_template_string(EDIT_TEMPLATE, product=product)
 
 @app.route('/delete/<int:id>')
 def delete_product(id):
-    if 'user_id' not in session: return redirect('/')
-    if session.get('permission')!='full' and session.get('role')!='admin': return "Access Denied",403
+    if 'user_id' not in session:
+        return redirect('/')
     conn = sqlite3.connect('inventory.db')
     c = conn.cursor()
     c.execute("DELETE FROM products WHERE id=?", (id,))
@@ -413,8 +407,8 @@ def delete_product(id):
 
 @app.route('/update/<int:id>/<int:stock>')
 def update_stock(id, stock):
-    if 'user_id' not in session: return redirect('/')
-    if session.get('permission')!='full' and session.get('role')!='admin': return "Access Denied",403
+    if 'user_id' not in session:
+        return redirect('/')
     conn = sqlite3.connect('inventory.db')
     c = conn.cursor()
     c.execute("UPDATE products SET stock=? WHERE id=?", (stock, id))
@@ -424,8 +418,8 @@ def update_stock(id, stock):
 
 @app.route('/take/<int:id>/<int:quantity>/<path:estimate>')
 def take_material(id, quantity, estimate):
-    if 'user_id' not in session: return redirect('/')
-    if session.get('permission')!='full' and session.get('role')!='admin': return "Access Denied",403
+    if 'user_id' not in session:
+        return redirect('/')
     conn = sqlite3.connect('inventory.db')
     c = conn.cursor()
     c.execute("SELECT name, stock, unit_type FROM products WHERE id=?", (id,))
@@ -439,20 +433,58 @@ def take_material(id, quantity, estimate):
     conn.close()
     return redirect('/dashboard')
 
-@app.route('/barcode-scanner')
-def barcode_scanner(): return render_template_string(BARCODE_TEMPLATE)
+@app.route('/users')
+def users():
+    if 'user_id' not in session:
+        return redirect('/')
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM users")
+    users = c.fetchall()
+    conn.close()
+    return render_template_string(USERS_TEMPLATE, users=users)
 
-@app.route('/multi-scan')
-def multi_scan(): return render_template_string(MULTI_SCAN_TEMPLATE)
+@app.route('/add-user', methods=['POST'])
+def add_user():
+    if 'user_id' not in session:
+        return redirect('/')
+    email = request.form['email']
+    username = request.form['username']
+    full_name = request.form['full_name']
+    password = hash_password(request.form['password'])
+    permission = request.form['permission']
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (email, username, full_name, password, role, permission) VALUES (?,?,?,?,?,?)",
+                  (email, username, full_name, password, 'staff', permission))
+        conn.commit()
+    except:
+        pass
+    conn.close()
+    return redirect('/users')
 
-@app.route('/activity-logs')
-def activity_logs(): return render_template_string(ACTIVITY_LOGS_TEMPLATE)
-
-@app.route('/logo-settings', methods=['GET','POST'])
-def logo_settings(): return render_template_string(LOGO_SETTINGS_TEMPLATE)
+@app.route('/delete-user/<int:id>')
+def delete_user(id):
+    if 'user_id' not in session:
+        return redirect('/')
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM users WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    return redirect('/users')
 
 @app.route('/transactions')
-def view_transactions(): return render_template_string(TRANSACTIONS_TEMPLATE)
+def view_transactions():
+    if 'user_id' not in session:
+        return redirect('/')
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+    c.execute("SELECT * FROM transactions ORDER BY date_taken DESC")
+    transactions = c.fetchall()
+    conn.close()
+    return render_template_string(TRANSACTIONS_TEMPLATE, transactions=transactions)
 
 @app.route('/logout')
 def logout():
